@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  CLP
+  USD
+}
+
+enum AccountType {
+  CHECKING       // Cuenta Corriente / Vista
+  SAVINGS        // Cuenta de Ahorro / Bolsillo
+  CREDIT_CARD    // Tarjeta de Crédito
+  CASH           // Efectivo
+  INVESTMENT     // Fondos Mutuos / Acciones
+}
+
+enum TransactionType {
+  INCOME              // Ingreso general
+  EXPENSE             // Egreso / Compra
+  TRANSFER            // Movimiento entre cuentas propias
+  SAVING_CONTRIBUTION // Aporte / Ingreso a meta de ahorro
+  SAVING_WITHDRAWAL   // Retiro / Egreso de ahorro por emergencia
+  DEBT_PAYMENT        // Abono o pago de deuda
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+}
+
+enum DebtType {
+  LENT      // Dinero que presté (por cobrar)
+  BORROWED  // Dinero que me prestaron (por pagar)
+}
+
+enum DebtStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  fullName     String
+  baseCurrency Currency      @default(CLP)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  savingGoals  SavingGoal[]
+  debtLoans    DebtLoan[]
+
+  @@map("users")
+}
+
+model Account {
+  id              String      @id @default(uuid())
+  userId          String
+  name            String
+  type            AccountType
+  currency        Currency    @default(CLP)
+  balance         Decimal     @default(0.0) @db.Decimal(14, 2)
+  creditLimit     Decimal?    @db.Decimal(14, 2)
+  billingCloseDay Int?        // 1 al 31
+  paymentDueDay   Int?        // 1 al 31
+  color           String      @default("#3B82F6")
+  icon            String      @default("wallet")
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originTransactions    Transaction[] @relation("OriginAccount")
+  destTransactions      Transaction[] @relation("DestinationAccount")
+  savingGoals           SavingGoal[]  @relation("TargetSavingsAccount")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  userId    String?      // Opcional si es categoría global predeterminada
+  name      String
+  type      CategoryType
+  icon      String       @default("tag")
+  color     String       @default("#6B7280")
+  createdAt DateTime     @default(now())
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("categories")
+}
+
+model Transaction {
+  id                   String          @id @default(uuid())
+  userId               String
+  accountId            String
+  destinationAccountId String?
+  categoryId           String?
+  type                 TransactionType
+  amount               Decimal         @db.Decimal(14, 2)
+  date                 DateTime        @default(now())
+  description          String
+  isRecurring          Boolean         @default(false)
+  recurrenceRule       String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account              Account           @relation("OriginAccount", fields: [accountId], references: [id])
+  destinationAccount   Account?          @relation("DestinationAccount", fields: [destinationAccountId], references: [id])
+  category             Category?         @relation(fields: [categoryId], references: [id])
+  goalContributions    GoalContribution[]
+  debtPayments         DebtPayment[]
+
+  @@index([userId, date])
+  @@map("transactions")
+}
+
+model SavingGoal {
+  id              String       @id @default(uuid())
+  userId          String
+  targetAccountId String
+  name            String
+  targetAmount    Decimal      @db.Decimal(14, 2)
+  currentAmount   Decimal      @default(0.0) @db.Decimal(14, 2)
+  targetDate      DateTime
+  color           String       @default("#10B981")
+  icon            String       @default("target")
+  status          GoalStatus   @default(ACTIVE)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetAccount Account            @relation("TargetSavingsAccount", fields: [targetAccountId], references: [id])
+  contributions GoalContribution[]
+
+  @@index([userId])
+  @@map("saving_goals")
+}
+
+model GoalContribution {
+  id            String      @id @default(uuid())
+  goalId        String
+  transactionId String?
+  amount        Decimal     @db.Decimal(14, 2)
+  date          DateTime    @default(now())
+  note          String?
+  createdAt     DateTime    @default(now())
+
+  goal        SavingGoal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([goalId])
+  @@map("goal_contributions")
+}
+
+model DebtLoan {
+  id            String      @id @default(uuid())
+  userId        String
+  contactName   String
+  type          DebtType
+  totalAmount   Decimal     @db.Decimal(14, 2)
+  pendingAmount Decimal     @db.Decimal(14, 2)
+  dueDate       DateTime?
+  status        DebtStatus  @default(PENDING)
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments DebtPayment[]
+
+  @@index([userId, status])
+  @@map("debt_loans")
+}
+
+model DebtPayment {
+  id            String      @id @default(uuid())
+  debtLoanId    String
+  transactionId String?
+  amount        Decimal     @db.Decimal(14, 2)
+  date          DateTime    @default(now())
+  note          String?
+  createdAt     DateTime    @default(now())
+
+  debtLoan    DebtLoan     @relation(fields: [debtLoanId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([debtLoanId])
+  @@map("debt_payments")
+}

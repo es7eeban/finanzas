@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: finanzas_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-finanzas_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-finanzas_password}
+      POSTGRES_DB: ${DB_NAME:-finanzas_db}
+    ports:
+      # Puerto 5433 en host para no colisionar con otros contenedores de Postgres en el 5432
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_finanzas_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_finanzas_data:
