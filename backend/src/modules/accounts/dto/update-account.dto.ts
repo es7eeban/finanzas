@@ -6,6 +6,14 @@ export class UpdateAccountDto {
   @IsOptional()
   name?: string;
 
+  @IsString()
+  @IsOptional()
+  institution?: string;
+
+  @IsString()
+  @IsOptional()
+  accountNumber?: string;
+
   @IsEnum(AccountType)
   @IsOptional()
   type?: AccountType;

@@ -18,38 +18,50 @@ import {
   Landmark,
   CreditCard,
   RefreshCw,
+  Archive,
 } from 'lucide-react';
 
 export default function App() {
   const { isDark, toggleTheme } = useThemeStore();
   const { user, token, checkAuth, logout } = useAuthStore();
-  const { accounts, loading, refetch, createAccount } = useAccounts();
+  const { accounts, loading, refetch, createAccount, toggleAccountStatus } = useAccounts();
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'accounts'>('dashboard');
+  const [accountFilter, setAccountFilter] = useState<'active' | 'inactive' | 'all'>('active');
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
-  // Si hay token o cambia el usuario, refrescar cuentas
   useEffect(() => {
     if (token) {
-      refetch();
+      refetch(true);
     }
   }, [token, refetch]);
 
-  // Totales calculados en tiempo real desde las cuentas reales
-  const totalBalanceCLP = accounts
+  // Filtrado de cuentas activas e inactivas
+  const activeAccounts = accounts.filter((a) => a.isActive);
+  const inactiveAccounts = accounts.filter((a) => !a.isActive);
+
+  const displayedAccounts =
+    accountFilter === 'active'
+      ? activeAccounts
+      : accountFilter === 'inactive'
+      ? inactiveAccounts
+      : accounts;
+
+  // Totales calculados en tiempo real SOLO de cuentas activas
+  const totalBalanceCLP = activeAccounts
     .filter((a) => a.currency === 'CLP' && a.type !== 'CREDIT_CARD')
     .reduce((sum, a) => sum + a.balance, 0);
 
-  const totalReservedCLP = accounts
+  const totalReservedCLP = activeAccounts
     .filter((a) => a.currency === 'CLP')
     .reduce((sum, a) => sum + (a.reservedInSavings || 0), 0);
 
-  const totalUSD = accounts
+  const totalUSD = activeAccounts
     .filter((a) => a.currency === 'USD')
     .reduce((sum, a) => sum + a.balance, 0);
 
@@ -89,7 +101,7 @@ export default function App() {
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            Cuentas ({accounts.length})
+            Cuentas ({activeAccounts.length})
           </button>
         </div>
 
@@ -198,24 +210,26 @@ export default function App() {
 
           <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider">Total Cuentas Activas</span>
+              <span className="text-xs font-semibold uppercase tracking-wider">Cuentas Activas</span>
               <CreditCard className="w-4 h-4 text-purple-500" />
             </div>
             <div className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-              {accounts.length}
+              {activeAccounts.length}
             </div>
-            <span className="text-xs text-slate-400">Banco, Ahorro, TC y Cash</span>
+            <span className="text-xs text-slate-400">
+              {inactiveAccounts.length > 0 ? `${inactiveAccounts.length} cerradas` : 'Todas operativas'}
+            </span>
           </div>
         </div>
 
         {/* Accounts Section */}
         <section className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Mis Métodos de Pago y Cuentas</span>
                 <button
-                  onClick={() => refetch()}
+                  onClick={() => refetch(true)}
                   className="p-1 text-slate-400 hover:text-indigo-500 transition-colors"
                   title="Recargar"
                 >
@@ -223,19 +237,56 @@ export default function App() {
                 </button>
               </h2>
               <p className="text-xs text-slate-500">
-                Balances sincronizados en vivo con PostgreSQL (Fase 1 completada)
+                Soporte de activación, cierre de cuentas y validación de duplicados
               </p>
             </div>
 
-            {user && (
-              <button
-                onClick={() => setIsCreateAccountOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Agregar Cuenta</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {/* Filter pills: Activas / Cerradas / Todas */}
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-semibold">
+                <button
+                  onClick={() => setAccountFilter('active')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    accountFilter === 'active'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Activas ({activeAccounts.length})
+                </button>
+                <button
+                  onClick={() => setAccountFilter('inactive')}
+                  className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                    accountFilter === 'inactive'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Archive className="w-3 h-3" />
+                  <span>Cerradas ({inactiveAccounts.length})</span>
+                </button>
+                <button
+                  onClick={() => setAccountFilter('all')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    accountFilter === 'all'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Todas ({accounts.length})
+                </button>
+              </div>
+
+              {user && (
+                <button
+                  onClick={() => setIsCreateAccountOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Nueva Cuenta</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -247,24 +298,30 @@ export default function App() {
                 />
               ))}
             </div>
-          ) : accounts.length === 0 ? (
-            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+          ) : displayedAccounts.length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
               <p className="text-sm text-slate-400">
-                {user
-                  ? 'No tienes cuentas creadas aún. ¡Crea la primera!'
+                {accountFilter === 'inactive'
+                  ? 'No tienes cuentas cerradas o inactivas.'
+                  : user
+                  ? 'No hay cuentas para mostrar.'
                   : 'Inicia sesión para visualizar tus cuentas.'}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {accounts.map((account) => (
-                <AccountCard key={account.id} account={account} />
+              {displayedAccounts.map((account) => (
+                <AccountCard
+                  key={account.id}
+                  account={account}
+                  onToggleStatus={toggleAccountStatus}
+                />
               ))}
             </div>
           )}
         </section>
 
-        {/* Feature Highlights: Saving Goal Spotlight (Viaje a Brasil) */}
+        {/* Feature Highlights: Saving Goal Spotlight */}
         <section className="p-6 rounded-3xl bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-transparent border border-teal-200/60 dark:border-teal-900/40 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -310,7 +367,7 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => {
           setIsAuthModalOpen(false);
-          refetch();
+          refetch(true);
         }}
       />
 

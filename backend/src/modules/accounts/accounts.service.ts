@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateAccountDto } from './dto/create-account.dto.js';
@@ -8,9 +13,12 @@ import { UpdateAccountDto } from './dto/update-account.dto.js';
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(userId: string) {
+  async findAll(userId: string, includeInactive: boolean = false) {
     const accounts = await this.prisma.account.findMany({
-      where: { userId, isActive: true },
+      where: {
+        userId,
+        ...(includeInactive ? {} : { isActive: true }),
+      },
       include: {
         savingGoals: {
           where: { status: 'ACTIVE' },
@@ -24,7 +32,7 @@ export class AccountsService {
           },
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ isActive: 'desc' }, { createdAt: 'asc' }],
     });
 
     return accounts.map((acc) => {
@@ -45,9 +53,13 @@ export class AccountsService {
     });
   }
 
-  async findOne(userId: string, id: string) {
+  async findOne(userId: string, id: string, allowInactive: boolean = false) {
     const account = await this.prisma.account.findFirst({
-      where: { id, userId, isActive: true },
+      where: {
+        id,
+        userId,
+        ...(allowInactive ? {} : { isActive: true }),
+      },
       include: {
         savingGoals: {
           select: {
@@ -81,10 +93,47 @@ export class AccountsService {
   }
 
   async create(userId: string, dto: CreateAccountDto) {
+    const trimmedName = dto.name.trim();
+
+    // 1. Validar que no exista ya una cuenta activa con el mismo nombre
+    const duplicateByName = await this.prisma.account.findFirst({
+      where: {
+        userId,
+        name: { equals: trimmedName, mode: 'insensitive' },
+        isActive: true,
+      },
+    });
+
+    if (duplicateByName) {
+      throw new ConflictException(
+        `Ya tienes una cuenta activa registrada con el nombre "${trimmedName}". Usa un nombre distintivo o agrega el banco o últimos 4 dígitos.`,
+      );
+    }
+
+    // 2. Si se ingresa banco y últimos dígitos, validar que no se repita
+    if (dto.accountNumber && dto.institution) {
+      const duplicateByNumber = await this.prisma.account.findFirst({
+        where: {
+          userId,
+          institution: { equals: dto.institution.trim(), mode: 'insensitive' },
+          accountNumber: dto.accountNumber.trim(),
+          isActive: true,
+        },
+      });
+
+      if (duplicateByNumber) {
+        throw new ConflictException(
+          `Ya tienes registrada una cuenta en ${dto.institution} con el identificador ****${dto.accountNumber.trim()}.`,
+        );
+      }
+    }
+
     const account = await this.prisma.account.create({
       data: {
         userId,
-        name: dto.name,
+        name: trimmedName,
+        institution: dto.institution?.trim() || null,
+        accountNumber: dto.accountNumber?.trim() || null,
         type: dto.type,
         currency: dto.currency ?? 'CLP',
         balance: new Prisma.Decimal(dto.balance ?? 0),
@@ -106,10 +155,12 @@ export class AccountsService {
   }
 
   async update(userId: string, id: string, dto: UpdateAccountDto) {
-    await this.findOne(userId, id);
+    await this.findOne(userId, id, true);
 
     const updateData: Prisma.AccountUpdateInput = {
-      ...(dto.name && { name: dto.name }),
+      ...(dto.name && { name: dto.name.trim() }),
+      ...(dto.institution !== undefined && { institution: dto.institution?.trim() || null }),
+      ...(dto.accountNumber !== undefined && { accountNumber: dto.accountNumber?.trim() || null }),
       ...(dto.type && { type: dto.type }),
       ...(dto.currency && { currency: dto.currency }),
       ...(dto.balance !== undefined && { balance: new Prisma.Decimal(dto.balance) }),
@@ -135,22 +186,33 @@ export class AccountsService {
     };
   }
 
-  async remove(userId: string, id: string) {
-    const account = await this.findOne(userId, id);
+  async toggleActive(userId: string, id: string) {
+    const account = await this.findOne(userId, id, true);
+    const newStatus = !account.isActive;
 
-    const activeGoalsCount = account.savingGoals.filter((g) => g.status === 'ACTIVE').length;
-    if (activeGoalsCount > 0) {
-      throw new BadRequestException(
-        'No se puede eliminar la cuenta porque tiene metas de ahorro activas asociadas. Reubique o complete las metas primero.',
-      );
+    // Si se va a desactivar, verificar si tiene metas de ahorro activas
+    if (!newStatus) {
+      const activeGoals = account.savingGoals.filter((g) => g.status === 'ACTIVE');
+      if (activeGoals.length > 0) {
+        throw new BadRequestException(
+          `No puedes desactivar esta cuenta porque tiene ${activeGoals.length} meta(s) de ahorro activa(s) asociada(s). Reasigna los fondos primero.`,
+        );
+      }
     }
 
-    // Soft-delete para preservar consistencia histórica de movimientos
-    await this.prisma.account.update({
+    const updated = await this.prisma.account.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: newStatus },
     });
 
-    return { message: 'Cuenta desactivada exitosamente' };
+    return {
+      ...updated,
+      balance: Number(updated.balance),
+      creditLimit: updated.creditLimit ? Number(updated.creditLimit) : null,
+    };
+  }
+
+  async remove(userId: string, id: string) {
+    return this.toggleActive(userId, id);
   }
 }

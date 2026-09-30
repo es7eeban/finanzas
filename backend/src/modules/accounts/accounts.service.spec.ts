@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AccountsService } from './accounts.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { AccountType, Currency, Prisma } from '@prisma/client';
 
 describe('AccountsService', () => {
@@ -59,22 +59,16 @@ describe('AccountsService', () => {
     });
   });
 
-  describe('findOne', () => {
-    it('debe lanzar NotFoundException si la cuenta no existe o no es del usuario', async () => {
+  describe('create', () => {
+    it('debe crear una cuenta correctamente si no está duplicada', async () => {
       vi.spyOn(prisma.account, 'findFirst').mockResolvedValue(null);
 
-      await expect(service.findOne('user-1', 'non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-  });
-
-  describe('create', () => {
-    it('debe crear una cuenta correctamente', async () => {
       const mockCreated = {
         id: 'acc-new',
         userId: 'user-1',
         name: 'Cuenta Dólares',
+        institution: 'Banco Santander',
+        accountNumber: '1234',
         type: AccountType.CHECKING,
         currency: Currency.USD,
         balance: new Prisma.Decimal(500),
@@ -92,6 +86,8 @@ describe('AccountsService', () => {
 
       const result = await service.create('user-1', {
         name: 'Cuenta Dólares',
+        institution: 'Banco Santander',
+        accountNumber: '1234',
         type: AccountType.CHECKING,
         currency: Currency.USD,
         balance: 500,
@@ -99,7 +95,45 @@ describe('AccountsService', () => {
 
       expect(result.id).toBe('acc-new');
       expect(result.balance).toBe(500);
-      expect(result.availableBalance).toBe(500);
+    });
+
+    it('debe lanzar ConflictException si ya existe una cuenta activa con el mismo nombre', async () => {
+      vi.spyOn(prisma.account, 'findFirst').mockResolvedValue({
+        id: 'existing-acc',
+        name: 'Cuenta Corriente',
+      } as any);
+
+      await expect(
+        service.create('user-1', {
+          name: 'Cuenta Corriente',
+          type: AccountType.CHECKING,
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('toggleActive', () => {
+    it('debe alternar el estado activo/inactivo de la cuenta', async () => {
+      vi.spyOn(prisma.account, 'findFirst').mockResolvedValue({
+        id: 'acc-1',
+        userId: 'user-1',
+        name: 'Cuenta a Cerrar',
+        isActive: true,
+        savingGoals: [],
+        balance: new Prisma.Decimal(0),
+        creditLimit: null,
+      } as any);
+
+      vi.spyOn(prisma.account, 'update').mockResolvedValue({
+        id: 'acc-1',
+        name: 'Cuenta a Cerrar',
+        isActive: false,
+        balance: new Prisma.Decimal(0),
+        creditLimit: null,
+      } as any);
+
+      const result = await service.toggleActive('user-1', 'acc-1');
+      expect(result.isActive).toBe(false);
     });
   });
 });

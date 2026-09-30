@@ -6,6 +6,14 @@ export class CreateAccountDto {
   @IsNotEmpty({ message: 'El nombre de la cuenta es obligatorio' })
   name!: string;
 
+  @IsString({ message: 'La institución o banco debe ser texto' })
+  @IsOptional()
+  institution?: string;
+
+  @IsString({ message: 'El número de cuenta o últimos dígitos debe ser texto' })
+  @IsOptional()
+  accountNumber?: string;
+
   @IsEnum(AccountType, { message: 'Tipo de cuenta no válido' })
   type!: AccountType;
 

@@ -19,6 +19,8 @@ export type DebtStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID';
 export interface Account {
   id: string;
   name: string;
+  institution?: string;
+  accountNumber?: string;
   type: AccountType;
   currency: Currency;
   balance: number;

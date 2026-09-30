@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service.js';
@@ -20,8 +21,12 @@ export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
   @Get()
-  async findAll(@CurrentUser('userId') userId: string) {
-    return this.accountsService.findAll(userId);
+  async findAll(
+    @CurrentUser('userId') userId: string,
+    @Query('includeInactive') includeInactive?: string,
+  ) {
+    const shouldInclude = includeInactive === 'true' || includeInactive === '1';
+    return this.accountsService.findAll(userId, shouldInclude);
   }
 
   @Post()
@@ -37,7 +42,7 @@ export class AccountsController {
     @CurrentUser('userId') userId: string,
     @Param('id') id: string,
   ) {
-    return this.accountsService.findOne(userId, id);
+    return this.accountsService.findOne(userId, id, true);
   }
 
   @Patch(':id')
@@ -47,6 +52,14 @@ export class AccountsController {
     @Body() updateAccountDto: UpdateAccountDto,
   ) {
     return this.accountsService.update(userId, id, updateAccountDto);
+  }
+
+  @Patch(':id/toggle-status')
+  async toggleStatus(
+    @CurrentUser('userId') userId: string,
+    @Param('id') id: string,
+  ) {
+    return this.accountsService.toggleActive(userId, id);
   }
 
   @Delete(':id')

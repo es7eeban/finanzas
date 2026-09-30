@@ -73,6 +73,8 @@ model Account {
   id              String      @id @default(uuid())
   userId          String
   name            String
+  institution     String?     // Banco o Entidad (ej. Banco de Chile, Santander, Mercado Pago)
+  accountNumber   String?     // Identificador o últimos 4 dígitos (ej. 4589)
   type            AccountType
   currency        Currency    @default(CLP)
   balance         Decimal     @default(0.0) @db.Decimal(14, 2)
