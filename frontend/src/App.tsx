@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  const { isDark, toggleTheme } = useThemeStore();
+  const { isDark, toggleTheme, initTheme } = useThemeStore();
   const { user, token, checkAuth, logout } = useAuthStore();
   const { accounts, loading, refetch, createAccount, toggleAccountStatus } = useAccounts();
 
@@ -32,8 +32,9 @@ export default function App() {
   const [accountFilter, setAccountFilter] = useState<'active' | 'inactive' | 'all'>('active');
 
   useEffect(() => {
+    initTheme();
     checkAuth();
-  }, [checkAuth]);
+  }, [initTheme, checkAuth]);
 
   useEffect(() => {
     if (token) {
