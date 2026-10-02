@@ -3,6 +3,7 @@ import { api } from '../../../services/api';
 import { formatCurrency } from '../../../utils/currency';
 import { Card } from '../../../components/common/Card';
 import { Badge } from '../../../components/common/Badge';
+import { DatePicker } from '../../../components/common/DatePicker';
 import {
   Target,
   PlusCircle,
@@ -479,18 +480,12 @@ export const SavingsPage = () => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Fecha Límite
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={newGoalDate}
-                  onChange={(e) => setNewGoalDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs"
-                />
-              </div>
+              <DatePicker
+                label="Fecha Límite"
+                required
+                value={newGoalDate}
+                onChange={setNewGoalDate}
+              />
 
               <button
                 type="submit"

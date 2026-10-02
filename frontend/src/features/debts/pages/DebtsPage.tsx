@@ -3,6 +3,7 @@ import { api } from '../../../services/api';
 import { formatCurrency } from '../../../utils/currency';
 import { Card } from '../../../components/common/Card';
 import { Badge } from '../../../components/common/Badge';
+import { DatePicker } from '../../../components/common/DatePicker';
 import {
   HandCoins,
   PlusCircle,
@@ -442,14 +443,12 @@ export const DebtsPage = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Fecha de Vencimiento (Opcional)
-                </label>
-                <input
-                  type="date"
+                <DatePicker
+                  label="Fecha de Vencimiento (Opcional)"
                   value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-xs"
+                  onChange={setNewDueDate}
+                  placeholder="Selecciona fecha límite..."
+                  showClearButton
                 />
               </div>
 
