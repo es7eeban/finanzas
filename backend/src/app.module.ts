@@ -7,6 +7,7 @@ import { AccountsModule } from './modules/accounts/accounts.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 import { SavingsModule } from './modules/savings/savings.module.js';
 import { DebtsModule } from './modules/debts/debts.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service.js';
     TransactionsModule,
     SavingsModule,
     DebtsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

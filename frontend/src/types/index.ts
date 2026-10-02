@@ -118,3 +118,63 @@ export interface User {
   fullName: string;
   baseCurrency: Currency;
 }
+
+export interface DashboardKPIs {
+  currency: Currency;
+  netWorth: number;
+  liquidAvailable: number;
+  reservedInSavings: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  creditDebt: number;
+  totalBorrowedPending: number;
+  totalLentPending: number;
+  currentMonthIncome: number;
+  currentMonthExpense: number;
+  currentMonthSavings: number;
+  savingsRate: number;
+  activeAccountsCount: number;
+  activeGoalsCount: number;
+}
+
+export interface CategoryExpense {
+  categoryId: string | null;
+  name: string;
+  color: string;
+  icon: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface MonthlyTrend {
+  month: string;
+  yearMonth: string;
+  income: number;
+  expense: number;
+  savings: number;
+  net: number;
+}
+
+export interface UpcomingDueItem {
+  id: string;
+  title: string;
+  category: 'DEBT_PAYABLE' | 'DEBT_RECEIVABLE' | 'CREDIT_CARD_CUTOFF' | 'CREDIT_CARD_DUE';
+  amount?: number;
+  dueDate: string;
+  daysRemaining: number;
+  urgency: 'overdue' | 'today' | 'urgent' | 'upcoming';
+  status: string;
+}
+
+export interface DashboardData {
+  kpis: DashboardKPIs;
+  expensesByCategory: {
+    month: string;
+    totalExpenses: number;
+    categories: CategoryExpense[];
+  };
+  historicalTrend: MonthlyTrend[];
+  upcomingDues: UpcomingDueItem[];
+  priorityGoals: SavingGoal[];
+}
+

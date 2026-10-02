@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AccountsService } from './accounts.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { NotFoundException, ConflictException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { AccountType, Currency, Prisma } from '@prisma/client';
 
 describe('AccountsService', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DebtsService } from './debts.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { DebtType, DebtStatus, Prisma } from '@prisma/client';
 
 describe('DebtsService', () => {
