@@ -85,7 +85,7 @@ export const DashboardPage = () => {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/transactions"
+            to="/transactions?action=new_expense"
             className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all"
           >
             <Plus className="w-4 h-4" />

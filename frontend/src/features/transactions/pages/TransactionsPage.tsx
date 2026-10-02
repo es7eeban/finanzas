@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { api } from '../../../services/api';
 import { formatCurrency } from '../../../utils/currency';
 import { Card } from '../../../components/common/Card';
 import { Badge } from '../../../components/common/Badge';
+import { CreateTransactionModal } from '../components/CreateTransactionModal';
 import {
   ArrowLeftRight,
   ArrowUpRight,
@@ -10,14 +13,46 @@ import {
   Search,
   Trash2,
   Calendar,
+  PlusCircle,
+  Tag,
+  Repeat,
 } from 'lucide-react';
 import type { Transaction, TransactionType } from '../../../types';
 
 export const TransactionsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
+
+  // Modal de nueva transacción
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialType, setModalInitialType] = useState<TransactionType>('EXPENSE');
+
+  // Detectar parámetro ?action=new_expense | new_income | new_transfer en URL
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new_expense') {
+      setModalInitialType('EXPENSE');
+      setIsModalOpen(true);
+    } else if (action === 'new_income') {
+      setModalInitialType('INCOME');
+      setIsModalOpen(true);
+    } else if (action === 'new_transfer') {
+      setModalInitialType('TRANSFER');
+      setIsModalOpen(true);
+    }
+  }, [searchParams]);
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // Limpiar query param de la URL si existía
+    if (searchParams.get('action')) {
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -32,7 +67,7 @@ export const TransactionsPage = () => {
 
       const { data } = await api.get('/transactions', { params });
       setTransactions(data.data || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al cargar transacciones', err);
     } finally {
       setLoading(false);
@@ -51,8 +86,12 @@ export const TransactionsPage = () => {
     try {
       await api.delete(`/transactions/${id}`);
       setTransactions((prev) => prev.filter((t) => t.id !== id));
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar la transacción');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        alert(err.response?.data?.message || 'Error al eliminar la transacción');
+      } else {
+        alert('Error inesperado al eliminar la transacción');
+      }
     }
   };
 
@@ -82,6 +121,11 @@ export const TransactionsPage = () => {
     }
   };
 
+  const openCreateModal = (type: TransactionType = 'EXPENSE') => {
+    setModalInitialType(type);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Cabecera */}
@@ -94,6 +138,14 @@ export const TransactionsPage = () => {
             Registro cronológico y trazabilidad de ingresos, gastos y transferencias
           </p>
         </div>
+
+        <button
+          onClick={() => openCreateModal('EXPENSE')}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all self-start sm:self-auto cursor-pointer"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Nueva Transacción</span>
+        </button>
       </div>
 
       {/* Barra de Filtros y Búsqueda */}
@@ -143,11 +195,18 @@ export const TransactionsPage = () => {
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
             No se encontraron transacciones
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1 mb-4">
             {search || typeFilter !== 'ALL'
               ? 'Prueba ajustando los filtros de búsqueda.'
               : 'Registra tu primer gasto, ingreso o transferencia para empezar a ver el historial.'}
           </p>
+          <button
+            onClick={() => openCreateModal('EXPENSE')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Registrar transacción ahora</span>
+          </button>
         </Card>
       ) : (
         <Card className="divide-y divide-slate-100 dark:divide-slate-800/80 overflow-hidden">
@@ -165,18 +224,37 @@ export const TransactionsPage = () => {
                     {getTransactionIcon(tx.type)}
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                         {tx.description}
                       </span>
                       <Badge variant={getBadgeVariant(tx.type)} size="sm">
                         {tx.type}
                       </Badge>
+                      {tx.category && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md text-white shrink-0 shadow-2xs"
+                          style={{ backgroundColor: tx.category.color || '#6366f1' }}
+                        >
+                          <Tag className="w-2.5 h-2.5" />
+                          <span>{tx.category.name}</span>
+                        </span>
+                      )}
+                      {tx.isRecurring && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                          <Repeat className="w-2.5 h-2.5" />
+                          <span>Recurrente</span>
+                        </span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                      <span>{tx.account?.name || 'Cuenta'}</span>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 flex-wrap">
+                      <span className="font-medium text-slate-600 dark:text-slate-300">
+                        {tx.account?.name || 'Cuenta'}
+                      </span>
                       {tx.destinationAccount && (
-                        <span>➔ {tx.destinationAccount.name}</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                          ➔ {tx.destinationAccount.name}
+                        </span>
                       )}
                       <span>•</span>
                       <span className="flex items-center gap-1">
@@ -214,6 +292,14 @@ export const TransactionsPage = () => {
           })}
         </Card>
       )}
+
+      {/* Modal de Creación de Transacción Rápida */}
+      <CreateTransactionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSuccess={fetchTransactions}
+        initialType={modalInitialType}
+      />
     </div>
   );
 };
