@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Percent,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import type { DashboardData } from '../../../types';
 
@@ -106,6 +107,65 @@ export const DashboardPage = () => {
           </Link>
         </div>
       </div>
+
+      {/* Banner de Alerta de Vencimientos Críticos (Fase 2.5) */}
+      {!loading && dashboardData && (() => {
+        const urgentDues = dashboardData.upcomingDues.filter(
+          (d) => d.urgency === 'overdue' || d.urgency === 'today',
+        );
+        if (urgentDues.length === 0) return null;
+
+        const overdueCount = urgentDues.filter((d) => d.urgency === 'overdue').length;
+        const todayCount = urgentDues.filter((d) => d.urgency === 'today').length;
+        const totalAmount = urgentDues.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+        return (
+          <div
+            data-testid="urgent-dues-banner"
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-transparent border border-rose-200 dark:border-rose-900/60 animate-in fade-in duration-200 shadow-xs"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 animate-bounce" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                  Atención con tus próximos pagos
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  Tienes{' '}
+                  {overdueCount > 0 && (
+                    <strong className="text-rose-600 dark:text-rose-400 font-semibold">
+                      {overdueCount} compromiso{overdueCount > 1 ? 's' : ''} vencido{overdueCount > 1 ? 's' : ''}
+                    </strong>
+                  )}
+                  {overdueCount > 0 && todayCount > 0 && ' y '}
+                  {todayCount > 0 && (
+                    <strong className="text-amber-600 dark:text-amber-400 font-semibold">
+                      {todayCount} por vencer hoy
+                    </strong>
+                  )}{' '}
+                  {totalAmount > 0 && (
+                    <span>
+                      por un total de <span className="font-bold tabular-nums">{formatCurrency(totalAmount, currency)}</span>
+                    </span>
+                  )}
+                  .
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <Link
+                to="/recurring"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 active:scale-95 transition-all"
+              >
+                Revisar Gastos Fijos
+              </Link>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Grid de Métricas Principales (KPIs) */}
       {loading || !kpis ? (

@@ -24,12 +24,21 @@ export interface MonthlyTrend {
 export interface UpcomingDueItem {
   id: string;
   title: string;
-  category: 'DEBT_PAYABLE' | 'DEBT_RECEIVABLE' | 'CREDIT_CARD_CUTOFF' | 'CREDIT_CARD_DUE';
+  category:
+    | 'DEBT_PAYABLE'
+    | 'DEBT_RECEIVABLE'
+    | 'CREDIT_CARD_CUTOFF'
+    | 'CREDIT_CARD_DUE'
+    | 'RECURRING_BILL'
+    | 'RECURRING_AUTOMATIC';
   amount?: number;
   dueDate: string;
   daysRemaining: number;
   urgency: 'overdue' | 'today' | 'urgent' | 'upcoming';
   status: string;
+  currency?: Currency;
+  executionType?: 'AUTOMATIC' | 'MANUAL_CHECK';
+  billCategory?: string;
 }
 
 @Injectable()
@@ -437,6 +446,66 @@ export class DashboardService {
           });
         }
       }
+    }
+
+    // 3. Pagos recurrentes activos (Fase 2.5)
+    const currentPeriod = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    const recurringBills = await this.prisma.recurringBill.findMany({
+      where: {
+        userId,
+        isActive: true,
+      },
+      include: {
+        executions: {
+          where: {
+            period: currentPeriod,
+          },
+        },
+      },
+    });
+
+    for (const bill of recurringBills) {
+      // Si ya fue pagado en este ciclo mensual, no debe alertar como pendiente
+      const isPaidThisMonth = bill.executions.some(
+        (exec) => exec.status === 'PAID',
+      );
+      if (isPaidThisMonth) continue;
+
+      // Calcular fecha de vencimiento para el ciclo actual
+      const cycleDueDate = new Date(currentYear, currentMonth, bill.dueDay);
+      cycleDueDate.setHours(0, 0, 0, 0);
+
+      const diffMs = cycleDueDate.getTime() - today.getTime();
+      const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      let urgency: UpcomingDueItem['urgency'] = 'upcoming';
+      if (daysRemaining < 0) urgency = 'overdue';
+      else if (daysRemaining === 0) urgency = 'today';
+      else if (daysRemaining <= 5) urgency = 'urgent';
+
+      const isAuto = bill.executionType === 'AUTOMATIC';
+      const category: UpcomingDueItem['category'] = isAuto
+        ? 'RECURRING_AUTOMATIC'
+        : 'RECURRING_BILL';
+
+      items.push({
+        id: `rec-${bill.id}`,
+        title: isAuto ? `Cargo PAT: ${bill.name}` : `Pagar: ${bill.name}`,
+        category,
+        amount: Number(bill.amount),
+        currency: bill.currency,
+        dueDate: cycleDueDate.toISOString(),
+        daysRemaining,
+        urgency,
+        status:
+          daysRemaining < 0
+            ? 'OVERDUE'
+            : daysRemaining === 0
+            ? 'DUE_TODAY'
+            : 'PENDING',
+        executionType: bill.executionType,
+        billCategory: bill.category,
+      });
     }
 
     return items.sort((a, b) => a.daysRemaining - b.daysRemaining);

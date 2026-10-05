@@ -191,12 +191,21 @@ export interface MonthlyTrend {
 export interface UpcomingDueItem {
   id: string;
   title: string;
-  category: 'DEBT_PAYABLE' | 'DEBT_RECEIVABLE' | 'CREDIT_CARD_CUTOFF' | 'CREDIT_CARD_DUE';
+  category:
+    | 'DEBT_PAYABLE'
+    | 'DEBT_RECEIVABLE'
+    | 'CREDIT_CARD_CUTOFF'
+    | 'CREDIT_CARD_DUE'
+    | 'RECURRING_BILL'
+    | 'RECURRING_AUTOMATIC';
   amount?: number;
   dueDate: string;
   daysRemaining: number;
   urgency: 'overdue' | 'today' | 'urgent' | 'upcoming';
   status: string;
+  currency?: Currency;
+  executionType?: BillExecutionType;
+  billCategory?: BillCategory;
 }
 
 export interface DashboardData {

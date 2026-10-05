@@ -24,6 +24,9 @@ describe('DashboardService', () => {
       transaction: {
         findMany: vi.fn(),
       },
+      recurringBill: {
+        findMany: vi.fn(),
+      },
     } as unknown as PrismaService;
 
     service = new DashboardService(prisma);
@@ -145,6 +148,73 @@ describe('DashboardService', () => {
       expect(result[0]).toHaveProperty('expense');
       expect(result[0]).toHaveProperty('savings');
       expect(result[0]).toHaveProperty('net');
+    });
+  });
+
+  describe('getUpcomingDues', () => {
+    it('debe consolidar deudas, tarjetas y pagos recurrentes activos no pagados', async () => {
+      vi.spyOn(prisma.debtLoan, 'findMany').mockResolvedValue([
+        {
+          id: 'debt-1',
+          contactName: 'Carlos',
+          type: DebtType.BORROWED,
+          pendingAmount: 75000,
+          dueDate: new Date(2026, 9, 20),
+          status: DebtStatus.PENDING,
+        },
+      ] as any);
+
+      vi.spyOn(prisma.account, 'findMany').mockResolvedValue([
+        {
+          id: 'cc-1',
+          name: 'Visa Signature',
+          type: AccountType.CREDIT_CARD,
+          balance: -120000,
+          paymentDueDay: 25,
+          billingCloseDay: 15,
+          isActive: true,
+        },
+      ] as any);
+
+      vi.spyOn(prisma.recurringBill, 'findMany').mockResolvedValue([
+        {
+          id: 'bill-1',
+          name: 'Luz Enel',
+          amount: 25000,
+          currency: Currency.CLP,
+          executionType: 'MANUAL_CHECK',
+          category: 'UTILITIES',
+          dueDay: 12,
+          isActive: true,
+          executions: [], // No pagado
+        },
+        {
+          id: 'bill-2',
+          name: 'Netflix',
+          amount: 10990,
+          currency: Currency.CLP,
+          executionType: 'AUTOMATIC',
+          category: 'SUBSCRIPTION',
+          dueDay: 5,
+          isActive: true,
+          executions: [
+            { id: 'exec-1', status: 'PAID' }, // Ya pagado este mes
+          ],
+        },
+      ] as any);
+
+      const dues = await service.getUpcomingDues('user-1');
+
+      // Debe incluir deuda (Carlos), pago tarjeta, corte tarjeta, y Luz Enel
+      // Debe excluir Netflix porque ya está pagado este mes
+      expect(dues.some((d) => d.title === 'Pagar deuda a Carlos')).toBe(true);
+      expect(dues.some((d) => d.id === 'rec-bill-1')).toBe(true);
+      expect(dues.some((d) => d.id === 'rec-bill-2')).toBe(false);
+
+      const enelDue = dues.find((d) => d.id === 'rec-bill-1');
+      expect(enelDue?.category).toBe('RECURRING_BILL');
+      expect(enelDue?.amount).toBe(25000);
+      expect(enelDue?.title).toBe('Pagar: Luz Enel');
     });
   });
 });
