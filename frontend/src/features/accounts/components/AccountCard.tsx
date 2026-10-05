@@ -9,16 +9,28 @@ import {
   DollarSign,
   Power,
   CheckCircle2,
+  IdCard,
+  HandCoins,
+  TrendingUp,
+  Pencil,
 } from 'lucide-react';
+import { OTHER_INSTITUTION_CODE, resolveInstitution } from '../constants/institutions';
+import { ACCOUNT_TYPE_LABELS, getSightAccountLabel } from '../constants/accountTypes';
+import { InstitutionLogo } from './InstitutionLogo';
 
 interface AccountCardProps {
   account: AccountWithSavings;
   onToggleStatus?: (id: string) => Promise<unknown>;
+  onEdit?: (account: AccountWithSavings) => void;
 }
 
-export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatus }) => {
+export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatus, onEdit }) => {
   const [isToggling, setIsToggling] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
+
+  const institution = resolveInstitution(account);
+  const hasCatalogInstitution = !!institution && institution.code !== OTHER_INSTITUTION_CODE;
+  const sightAccountLabel = getSightAccountLabel(account);
 
   const getIcon = () => {
     switch (account.type) {
@@ -28,10 +40,16 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
         ) : (
           <Landmark className="w-5 h-5" />
         );
+      case 'SIGHT_ACCOUNT':
+        return <IdCard className="w-5 h-5" />;
       case 'CREDIT_CARD':
         return <CreditCard className="w-5 h-5" />;
       case 'SAVINGS':
         return <PiggyBank className="w-5 h-5" />;
+      case 'INVESTMENT':
+        return <TrendingUp className="w-5 h-5" />;
+      case 'LOAN_ACCOUNT':
+        return <HandCoins className="w-5 h-5" />;
       case 'CASH':
       default:
         return <Wallet className="w-5 h-5" />;
@@ -39,7 +57,16 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
   };
 
   const isCreditCard = account.type === 'CREDIT_CARD';
+  const isLoan = account.type === 'LOAN_ACCOUNT';
   const isInactive = !account.isActive;
+  // Subtítulo: si el banco ya aparece como insignia, se muestra el tipo de cuenta;
+  // si es una entidad libre (v1 / "Otro"), se muestra su nombre.
+  const subtitleLead = hasCatalogInstitution
+    ? sightAccountLabel
+      ? null
+      : ACCOUNT_TYPE_LABELS[account.type]
+    : account.institution || null;
+  const showTypeFallback = !subtitleLead && !account.accountNumber && !sightAccountLabel;
 
   const handleToggle = async () => {
     if (!onToggleStatus) return;
@@ -64,18 +91,29 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm transition-opacity ${
-              isInactive ? 'opacity-50 grayscale' : ''
-            }`}
-            style={{ backgroundColor: account.color }}
-          >
-            {getIcon()}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="relative shrink-0">
+            <div
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-sm transition-opacity ${
+                isInactive ? 'opacity-50 grayscale' : ''
+              }`}
+              style={{ backgroundColor: account.color }}
+            >
+              {getIcon()}
+            </div>
+            {hasCatalogInstitution && (
+              <InstitutionLogo
+                institution={institution}
+                size="xs"
+                className={`absolute -bottom-1 -right-1 ring-2 ring-white dark:ring-slate-900 ${
+                  isInactive ? 'grayscale' : ''
+                }`}
+              />
+            )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="font-bold text-slate-900 dark:text-white leading-tight text-sm">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-bold text-slate-900 dark:text-white leading-tight text-sm truncate">
                 {account.name}
               </h4>
               {isInactive && (
@@ -85,34 +123,24 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
               )}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
-              {account.institution && (
-                <span className="font-medium text-slate-600 dark:text-slate-300">
-                  {account.institution}
+              {subtitleLead && (
+                <span className="font-medium text-slate-600 dark:text-slate-300 truncate">
+                  {subtitleLead}
                 </span>
               )}
-              {account.institution && account.accountNumber && <span>•</span>}
+              {subtitleLead && account.accountNumber && <span>•</span>}
               {account.accountNumber && (
                 <span className="tabular-nums font-mono text-[11px]">
                   •••• {account.accountNumber}
                 </span>
               )}
-              {!account.institution && !account.accountNumber && (
-                <span className="capitalize">
-                  {account.type === 'CHECKING'
-                    ? 'Cuenta Corriente'
-                    : account.type === 'CREDIT_CARD'
-                    ? 'Tarjeta de Crédito'
-                    : account.type === 'SAVINGS'
-                    ? 'Cuenta de Ahorro'
-                    : 'Efectivo'}
-                </span>
-              )}
+              {showTypeFallback && <span>{ACCOUNT_TYPE_LABELS[account.type]}</span>}
             </div>
           </div>
         </div>
 
         <span
-          className={`px-2 py-0.5 text-[11px] font-bold rounded-lg border ${
+          className={`shrink-0 px-2 py-0.5 text-[11px] font-bold rounded-lg border ${
             account.currency === 'USD'
               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
               : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
@@ -122,14 +150,52 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
         </span>
       </div>
 
+      {/* Insignias: banco + tipo de cuenta */}
+      {(hasCatalogInstitution || sightAccountLabel || isLoan) && (
+        <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+          {hasCatalogInstitution && (
+            <span
+              data-testid="institution-badge"
+              className={`px-2 py-0.5 text-[10px] font-bold rounded-md border ${institution.badgeClass}`}
+            >
+              {institution.name}
+            </span>
+          )}
+          {sightAccountLabel && (
+            <span
+              data-testid="sight-account-badge"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-md border bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900"
+            >
+              <IdCard className="w-3 h-3" />
+              {sightAccountLabel}
+            </span>
+          )}
+          {isLoan && (
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-md border bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900">
+              Pasivo
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Descripción personalizada */}
+      {account.description && (
+        <p
+          className="text-xs text-slate-500 dark:text-slate-400 italic line-clamp-2 -mt-1"
+          title={account.description}
+        >
+          {account.description}
+        </p>
+      )}
+
       {/* Balance display */}
       <div>
         <span className="text-xs text-slate-500 dark:text-slate-400">
-          {isCreditCard ? 'Saldo Utilizado' : 'Saldo Total en Cuenta'}
+          {isCreditCard ? 'Saldo Utilizado' : isLoan ? 'Saldo Adeudado' : 'Saldo Total en Cuenta'}
         </span>
         <div
           className={`text-2xl font-extrabold tabular-nums tracking-tight ${
-            isCreditCard && account.balance < 0
+            (isCreditCard || isLoan) && account.balance < 0
               ? 'text-rose-600 dark:text-rose-400'
               : 'text-slate-900 dark:text-white'
           }`}
@@ -182,31 +248,44 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
         </div>
       )}
 
-      {/* Footer Actions: Activar / Desactivar */}
-      {onToggleStatus && (
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-          <button
-            onClick={handleToggle}
-            disabled={isToggling}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
-              isInactive
-                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
-                : 'text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-            }`}
-            title={isInactive ? 'Reactivar cuenta' : 'Desactivar o cerrar cuenta'}
-          >
-            {isInactive ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{isToggling ? 'Activando...' : 'Reactivar'}</span>
-              </>
-            ) : (
-              <>
-                <Power className="w-3.5 h-3.5" />
-                <span>{isToggling ? 'Procesando...' : 'Cerrar Cuenta'}</span>
-              </>
-            )}
-          </button>
+      {/* Footer Actions: Editar / Activar / Desactivar */}
+      {(onToggleStatus || onEdit) && (
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-1">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit(account)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
+              title="Editar cuenta"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Editar</span>
+            </button>
+          )}
+          {onToggleStatus && (
+            <button
+              onClick={handleToggle}
+              disabled={isToggling}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
+                isInactive
+                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60'
+                  : 'text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+              }`}
+              title={isInactive ? 'Reactivar cuenta' : 'Desactivar o cerrar cuenta'}
+            >
+              {isInactive ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{isToggling ? 'Activando...' : 'Reactivar'}</span>
+                </>
+              ) : (
+                <>
+                  <Power className="w-3.5 h-3.5" />
+                  <span>{isToggling ? 'Procesando...' : 'Cerrar Cuenta'}</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>

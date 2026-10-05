@@ -2,10 +2,12 @@ export type Currency = 'CLP' | 'USD';
 
 export type AccountType =
   | 'CHECKING'
+  | 'SIGHT_ACCOUNT'
   | 'SAVINGS'
   | 'CREDIT_CARD'
   | 'CASH'
-  | 'INVESTMENT';
+  | 'INVESTMENT'
+  | 'LOAN_ACCOUNT';
 
 export type TransactionType =
   | 'INCOME'
@@ -34,6 +36,8 @@ export interface Account {
   id: string;
   name: string;
   institution?: string | null;
+  institutionCode?: string | null;
+  description?: string | null;
   accountNumber?: string | null;
   type: AccountType;
   currency: Currency;

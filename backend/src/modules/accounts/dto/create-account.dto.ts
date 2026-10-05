@@ -1,4 +1,15 @@
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { AccountType, Currency } from '@prisma/client';
 
 export class CreateAccountDto {
@@ -9,6 +20,16 @@ export class CreateAccountDto {
   @IsString({ message: 'La institución o banco debe ser texto' })
   @IsOptional()
   institution?: string;
+
+  @IsString({ message: 'El código de institución debe ser texto' })
+  @Matches(/^[a-z0-9_]{1,40}$/, { message: 'Código de institución no válido' })
+  @IsOptional()
+  institutionCode?: string;
+
+  @IsString({ message: 'La descripción debe ser texto' })
+  @MaxLength(255, { message: 'La descripción no puede superar los 255 caracteres' })
+  @IsOptional()
+  description?: string;
 
   @IsString({ message: 'El número de cuenta o últimos dígitos debe ser texto' })
   @IsOptional()

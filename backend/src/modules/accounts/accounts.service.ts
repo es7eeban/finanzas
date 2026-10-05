@@ -133,6 +133,8 @@ export class AccountsService {
         userId,
         name: trimmedName,
         institution: dto.institution?.trim() || null,
+        institutionCode: dto.institutionCode?.trim() || null,
+        description: dto.description?.trim() || null,
         accountNumber: dto.accountNumber?.trim() || null,
         type: dto.type,
         currency: dto.currency ?? 'CLP',
@@ -157,9 +159,31 @@ export class AccountsService {
   async update(userId: string, id: string, dto: UpdateAccountDto) {
     await this.findOne(userId, id, true);
 
+    const trimmedName = dto.name?.trim();
+    if (trimmedName) {
+      const duplicateByName = await this.prisma.account.findFirst({
+        where: {
+          userId,
+          id: { not: id },
+          name: { equals: trimmedName, mode: 'insensitive' },
+          isActive: true,
+        },
+      });
+
+      if (duplicateByName) {
+        throw new ConflictException(
+          `Ya tienes una cuenta activa registrada con el nombre "${trimmedName}". Usa un nombre distintivo o agrega el banco o últimos 4 dígitos.`,
+        );
+      }
+    }
+
     const updateData: Prisma.AccountUpdateInput = {
-      ...(dto.name && { name: dto.name.trim() }),
+      ...(trimmedName && { name: trimmedName }),
       ...(dto.institution !== undefined && { institution: dto.institution?.trim() || null }),
+      ...(dto.institutionCode !== undefined && {
+        institutionCode: dto.institutionCode?.trim() || null,
+      }),
+      ...(dto.description !== undefined && { description: dto.description?.trim() || null }),
       ...(dto.accountNumber !== undefined && { accountNumber: dto.accountNumber?.trim() || null }),
       ...(dto.type && { type: dto.type }),
       ...(dto.currency && { currency: dto.currency }),

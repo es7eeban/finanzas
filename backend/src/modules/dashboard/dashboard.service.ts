@@ -61,8 +61,12 @@ export class DashboardService {
       0,
     );
 
-    // Activos no de crédito (cuentas corrientes, ahorros, efectivo)
-    const assetAccounts = accounts.filter((a) => a.type !== AccountType.CREDIT_CARD);
+    // Cuentas de pasivo: tarjetas de crédito y cuentas de préstamo (v2)
+    const liabilityTypes: AccountType[] = [AccountType.CREDIT_CARD, AccountType.LOAN_ACCOUNT];
+    const isLiabilityAccount = (type: AccountType) => liabilityTypes.includes(type);
+
+    // Activos no de crédito (cuentas corrientes, vista, ahorros, efectivo)
+    const assetAccounts = accounts.filter((a) => !isLiabilityAccount(a.type));
     const totalAssets = assetAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
     const liquidAvailable = Math.max(0, totalAssets - reservedInSavings);
 
@@ -82,8 +86,8 @@ export class DashboardService {
       .filter((d) => d.type === DebtType.LENT)
       .reduce((sum, d) => sum + Number(d.pendingAmount), 0);
 
-    // Saldo adeudado en tarjetas de crédito (balance negativo)
-    const creditCards = accounts.filter((a) => a.type === AccountType.CREDIT_CARD);
+    // Saldo adeudado en tarjetas de crédito y préstamos (balance negativo)
+    const creditCards = accounts.filter((a) => isLiabilityAccount(a.type));
     const creditDebt = creditCards.reduce((sum, a) => {
       const bal = Number(a.balance);
       return sum + (bal < 0 ? Math.abs(bal) : 0);

@@ -18,6 +18,8 @@ export interface AccountWithSavings extends Account {
 export interface CreateAccountInput {
   name: string;
   institution?: string;
+  institutionCode?: string;
+  description?: string;
   accountNumber?: string;
   type: AccountType;
   currency: Currency;
@@ -28,6 +30,35 @@ export interface CreateAccountInput {
   color?: string;
   icon?: string;
 }
+
+/**
+ * Campos editables de una cuenta. Las cadenas vacías limpian el valor en el backend
+ * y `null` limpia los campos numéricos de tarjeta de crédito.
+ */
+export interface UpdateAccountInput {
+  name?: string;
+  institution?: string;
+  institutionCode?: string;
+  description?: string;
+  accountNumber?: string;
+  type?: AccountType;
+  creditLimit?: number | null;
+  billingCloseDay?: number | null;
+  paymentDueDay?: number | null;
+  color?: string;
+}
+
+/** Re-lanza el mensaje de error del backend (ej. 409 Conflict) si existe */
+const rethrowBackendError = (err: unknown): never => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const axiosErr = err as { response?: { data?: { message?: string | string[] } } };
+    const backendMessage = axiosErr.response?.data?.message;
+    if (backendMessage) {
+      throw new Error(Array.isArray(backendMessage) ? backendMessage.join('. ') : backendMessage);
+    }
+  }
+  throw err;
+};
 
 export function useAccounts() {
   const [accounts, setAccounts] = useState<AccountWithSavings[]>([]);
@@ -60,15 +91,18 @@ export function useAccounts() {
       setAccounts((prev) => [data, ...prev]);
       return data;
     } catch (err: unknown) {
-      // Si Axios devuelve mensaje de error del backend (ej. 409 Conflict)
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { message?: string } } };
-        const backendMessage = axiosErr.response?.data?.message;
-        if (backendMessage) {
-          throw new Error(backendMessage);
-        }
-      }
-      throw err;
+      return rethrowBackendError(err);
+    }
+  };
+
+  const updateAccount = async (id: string, input: UpdateAccountInput) => {
+    try {
+      const { data } = await api.patch<Account>(`/accounts/${id}`, input);
+      // El PATCH no recalcula ahorros reservados: se preservan los valores ya conocidos
+      setAccounts((prev) => prev.map((acc) => (acc.id === id ? { ...acc, ...data } : acc)));
+      return data;
+    } catch (err: unknown) {
+      return rethrowBackendError(err);
     }
   };
 
@@ -80,14 +114,7 @@ export function useAccounts() {
       );
       return data;
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosErr = err as { response?: { data?: { message?: string } } };
-        const backendMessage = axiosErr.response?.data?.message;
-        if (backendMessage) {
-          throw new Error(backendMessage);
-        }
-      }
-      throw err;
+      return rethrowBackendError(err);
     }
   };
 
@@ -97,6 +124,7 @@ export function useAccounts() {
     error,
     refetch: fetchAccounts,
     createAccount,
+    updateAccount,
     toggleAccountStatus,
   };
 }

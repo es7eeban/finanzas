@@ -13,11 +13,13 @@ enum Currency {
 }
 
 enum AccountType {
-  CHECKING       // Cuenta Corriente / Vista
+  CHECKING       // Cuenta Corriente
+  SIGHT_ACCOUNT  // Cuenta Vista / CuentaRUT (v2)
   SAVINGS        // Cuenta de Ahorro / Bolsillo
   CREDIT_CARD    // Tarjeta de Crédito
   CASH           // Efectivo
   INVESTMENT     // Fondos Mutuos / Acciones
+  LOAN_ACCOUNT   // Cuenta de Préstamo / Pasivo (v2)
 }
 
 enum TransactionType {
@@ -74,6 +76,8 @@ model Account {
   userId          String
   name            String
   institution     String?     // Banco o Entidad (ej. Banco de Chile, Santander, Mercado Pago)
+  institutionCode String?     // Código de catálogo (ej. 'banco_estado', 'santander') (v2)
+  description     String?     @db.VarChar(255) // Notas o propósito de la cuenta (v2)
   accountNumber   String?     // Identificador o últimos 4 dígitos (ej. 4589)
   type            AccountType
   currency        Currency    @default(CLP)

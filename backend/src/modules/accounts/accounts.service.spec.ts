@@ -110,6 +110,81 @@ describe('AccountsService', () => {
         }),
       ).rejects.toThrow(ConflictException);
     });
+
+    it('debe crear una CuentaRUT (SIGHT_ACCOUNT) persistiendo institutionCode y description (v2)', async () => {
+      vi.spyOn(prisma.account, 'findFirst').mockResolvedValue(null);
+      const createSpy = vi.spyOn(prisma.account, 'create').mockResolvedValue({
+        id: 'acc-rut',
+        userId: 'user-1',
+        name: 'CuentaRUT',
+        institution: 'BancoEstado',
+        institutionCode: 'banco_estado',
+        description: 'Fondo para imprevistos',
+        type: AccountType.SIGHT_ACCOUNT,
+        currency: Currency.CLP,
+        balance: new Prisma.Decimal(0),
+        creditLimit: null,
+      } as any);
+
+      const result = await service.create('user-1', {
+        name: '  CuentaRUT ',
+        institution: 'BancoEstado',
+        institutionCode: 'banco_estado',
+        description: '  Fondo para imprevistos  ',
+        type: AccountType.SIGHT_ACCOUNT,
+      });
+
+      expect(createSpy).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'CuentaRUT',
+          institutionCode: 'banco_estado',
+          description: 'Fondo para imprevistos',
+          type: AccountType.SIGHT_ACCOUNT,
+        }),
+      });
+      expect(result.type).toBe(AccountType.SIGHT_ACCOUNT);
+    });
+  });
+
+  describe('update', () => {
+    const existing = {
+      id: 'acc-1',
+      userId: 'user-1',
+      name: 'Cuenta Corriente',
+      isActive: true,
+      savingGoals: [],
+      balance: new Prisma.Decimal(1000),
+      creditLimit: null,
+    };
+
+    it('debe actualizar descripción e institución y limpiar valores vacíos (v2)', async () => {
+      vi.spyOn(prisma.account, 'findFirst').mockResolvedValue(existing as any);
+      const updateSpy = vi.spyOn(prisma.account, 'update').mockResolvedValue({
+        ...existing,
+        institutionCode: null,
+        description: 'Gastos del hogar',
+      } as any);
+
+      await service.update('user-1', 'acc-1', {
+        institutionCode: '',
+        description: 'Gastos del hogar',
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith({
+        where: { id: 'acc-1' },
+        data: { institutionCode: null, description: 'Gastos del hogar' },
+      });
+    });
+
+    it('debe lanzar ConflictException al renombrar con el nombre de otra cuenta activa', async () => {
+      vi.spyOn(prisma.account, 'findFirst')
+        .mockResolvedValueOnce(existing as any)
+        .mockResolvedValueOnce({ id: 'acc-2', name: 'Visa' } as any);
+
+      await expect(service.update('user-1', 'acc-1', { name: 'Visa' })).rejects.toThrow(
+        ConflictException,
+      );
+    });
   });
 
   describe('toggleActive', () => {

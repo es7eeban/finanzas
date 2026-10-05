@@ -1,13 +1,20 @@
 import { useState } from 'react';
-import { useAccounts, type CreateAccountInput } from '../hooks/useAccounts';
+import {
+  useAccounts,
+  type AccountWithSavings,
+  type CreateAccountInput,
+  type UpdateAccountInput,
+} from '../hooks/useAccounts';
 import { AccountCard } from '../components/AccountCard';
 import { CreateAccountModal } from '../components/CreateAccountModal';
 import { PlusCircle, Landmark, RefreshCw } from 'lucide-react';
 
 export const AccountsPage = () => {
-  const { accounts, loading, refetch, createAccount, toggleAccountStatus } = useAccounts();
+  const { accounts, loading, refetch, createAccount, updateAccount, toggleAccountStatus } =
+    useAccounts();
   const [accountFilter, setAccountFilter] = useState<'active' | 'inactive' | 'all'>('active');
   const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AccountWithSavings | null>(null);
 
   const activeAccounts = accounts.filter((a) => a.isActive);
   const inactiveAccounts = accounts.filter((a) => !a.isActive);
@@ -21,6 +28,25 @@ export const AccountsPage = () => {
 
   const handleCreate = async (input: CreateAccountInput) => {
     await createAccount(input);
+  };
+
+  const handleUpdate = async (id: string, input: UpdateAccountInput) => {
+    await updateAccount(id, input);
+  };
+
+  const openCreateModal = () => {
+    setEditingAccount(null);
+    setIsCreateAccountOpen(true);
+  };
+
+  const openEditModal = (account: AccountWithSavings) => {
+    setEditingAccount(account);
+    setIsCreateAccountOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsCreateAccountOpen(false);
+    setEditingAccount(null);
   };
 
   return (
@@ -37,7 +63,7 @@ export const AccountsPage = () => {
         </div>
 
         <button
-          onClick={() => setIsCreateAccountOpen(true)}
+          onClick={openCreateModal}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 active:scale-95 transition-all self-start sm:self-auto cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
@@ -105,7 +131,7 @@ export const AccountsPage = () => {
           </p>
           {accountFilter !== 'inactive' && (
             <button
-              onClick={() => setIsCreateAccountOpen(true)}
+              onClick={openCreateModal}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors"
             >
               <PlusCircle className="w-4 h-4" />
@@ -120,16 +146,19 @@ export const AccountsPage = () => {
               key={account.id}
               account={account}
               onToggleStatus={toggleAccountStatus}
+              onEdit={openEditModal}
             />
           ))}
         </div>
       )}
 
-      {/* Modal de Creación */}
+      {/* Modal de Creación / Edición */}
       <CreateAccountModal
         isOpen={isCreateAccountOpen}
-        onClose={() => setIsCreateAccountOpen(false)}
+        onClose={closeModal}
         onSubmit={handleCreate}
+        account={editingAccount}
+        onUpdate={handleUpdate}
       />
     </div>
   );
