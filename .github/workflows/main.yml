@@ -42,12 +42,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
       - name: Instalar Dependencias
-        run: npm ci
+        run: npm ci || npm install --legacy-peer-deps
 
       - name: Generar Cliente Prisma
         run: npx prisma generate
@@ -82,12 +82,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Instalar Dependencias
-        run: npm ci
+        run: npm ci || npm install --legacy-peer-deps
 
       - name: Verificación de Tipos TypeScript (tsc)
         run: npx tsc -b --noEmit
