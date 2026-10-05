@@ -23,6 +23,24 @@ export type DebtType = 'LENT' | 'BORROWED';
 
 export type DebtStatus = 'PENDING' | 'PARTIALLY_PAID' | 'PAID';
 
+export type BillFrequency = 'MONTHLY' | 'WEEKLY' | 'BIWEEKLY' | 'ANNUAL';
+
+export type BillExecutionType = 'AUTOMATIC' | 'MANUAL_CHECK';
+
+export type BillCategory =
+  | 'SUBSCRIPTION'
+  | 'UTILITIES'
+  | 'TELECOM'
+  | 'HOUSING'
+  | 'EDUCATION'
+  | 'INSURANCE'
+  | 'OTHER';
+
+export type ExecutionStatus = 'PAID' | 'SKIPPED';
+
+export type RecurringBillStatus = 'PAID' | 'DUE_SOON' | 'PENDING' | 'OVERDUE';
+
+
 export interface Category {
   id: string;
   userId?: string | null;
@@ -192,4 +210,55 @@ export interface DashboardData {
   upcomingDues: UpcomingDueItem[];
   priorityGoals: SavingGoal[];
 }
+
+export interface RecurringBillExecution {
+  id: string;
+  recurringBillId: string;
+  transactionId?: string | null;
+  period: string;
+  amountPaid: number;
+  paidAt: string;
+  status: ExecutionStatus;
+  notes?: string | null;
+  createdAt?: string;
+}
+
+export interface RecurringBill {
+  id: string;
+  userId: string;
+  accountId?: string | null;
+  categoryId?: string | null;
+  name: string;
+  amount: number;
+  currency: Currency;
+  frequency: BillFrequency;
+  executionType: BillExecutionType;
+  category: BillCategory;
+  dueDay: number;
+  nextDueDate: string;
+  isActive: boolean;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  account?: Partial<Account> | null;
+  categoryRel?: Partial<Category> | null;
+  isPaidThisMonth?: boolean;
+  daysRemaining?: number;
+  isOverdue?: boolean;
+  status?: RecurringBillStatus;
+  targetPeriod?: string;
+  cycleDueDate?: string;
+  currentExecution?: RecurringBillExecution | null;
+}
+
+export interface RecurringBillsSummary {
+  period: string;
+  totalCommitted: number;
+  totalPaid: number;
+  totalPending: number;
+  totalBills: number;
+  paidCount: number;
+  pendingCount: number;
+}
+
 

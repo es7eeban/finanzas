@@ -53,6 +53,34 @@ enum DebtStatus {
   PAID
 }
 
+enum BillFrequency {
+  MONTHLY        // Mensual (más común)
+  WEEKLY         // Semanal
+  BIWEEKLY       // Quincenal
+  ANNUAL         // Anual
+}
+
+enum BillExecutionType {
+  AUTOMATIC      // Débito automático en TC o cuenta (PAT)
+  MANUAL_CHECK   // Requiere confirmación manual con botón "Marcar como pagado"
+}
+
+enum BillCategory {
+  SUBSCRIPTION   // Streaming, Software, Membresías
+  UTILITIES      // Luz, Agua, Gas, Aseo
+  TELECOM        // Internet, Telefonía, TV Cable
+  HOUSING        // Arriendo, Gastos Comunes, Contribuciones
+  EDUCATION      // Colegios, Universidad, Cursos
+  INSURANCE      // Seguros de salud, auto, vida
+  OTHER          // Otros pagos recurrentes
+}
+
+enum ExecutionStatus {
+  PAID           // Pagado
+  SKIPPED        // Omitido voluntariamente
+}
+
+
 model User {
   id           String        @id @default(uuid())
   email        String        @unique
@@ -62,11 +90,12 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
-  savingGoals  SavingGoal[]
-  debtLoans    DebtLoan[]
+  accounts       Account[]
+  categories     Category[]
+  transactions   Transaction[]
+  savingGoals    SavingGoal[]
+  debtLoans      DebtLoan[]
+  recurringBills RecurringBill[]
 
   @@map("users")
 }
@@ -95,6 +124,7 @@ model Account {
   originTransactions    Transaction[] @relation("OriginAccount")
   destTransactions      Transaction[] @relation("DestinationAccount")
   savingGoals           SavingGoal[]  @relation("TargetSavingsAccount")
+  recurringBills        RecurringBill[]
 
   @@index([userId])
   @@map("accounts")
@@ -109,8 +139,9 @@ model Category {
   color     String       @default("#6B7280")
   createdAt DateTime     @default(now())
 
-  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions   Transaction[]
+  recurringBills RecurringBill[]
 
   @@index([userId])
   @@map("categories")
@@ -131,12 +162,13 @@ model Transaction {
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
-  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account              Account           @relation("OriginAccount", fields: [accountId], references: [id])
-  destinationAccount   Account?          @relation("DestinationAccount", fields: [destinationAccountId], references: [id])
-  category             Category?         @relation(fields: [categoryId], references: [id])
-  goalContributions    GoalContribution[]
-  debtPayments         DebtPayment[]
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account                 Account                  @relation("OriginAccount", fields: [accountId], references: [id])
+  destinationAccount      Account?                 @relation("DestinationAccount", fields: [destinationAccountId], references: [id])
+  category                Category?                @relation(fields: [categoryId], references: [id])
+  goalContributions       GoalContribution[]
+  debtPayments            DebtPayment[]
+  recurringBillExecutions RecurringBillExecution[]
 
   @@index([userId, date])
   @@map("transactions")
@@ -229,4 +261,53 @@ model ExchangeRateCache {
   @@unique([fromCurrency, toCurrency])
   @@map("exchange_rate_cache")
 }
+
+// Pagos Recurrentes y Suscripciones (v2)
+model RecurringBill {
+  id            String            @id @default(uuid())
+  userId        String
+  accountId     String?           // Cuenta sugerida o donde está domiciliado el PAT
+  categoryId    String?           // Categoría contable asociada
+  name          String
+  amount        Decimal           @db.Decimal(14, 2)
+  currency      Currency          @default(CLP)
+  frequency     BillFrequency     @default(MONTHLY)
+  executionType BillExecutionType @default(MANUAL_CHECK)
+  category      BillCategory      @default(UTILITIES)
+  dueDay        Int               // Día del mes en que vence (1 - 31)
+  nextDueDate   DateTime
+  isActive      Boolean           @default(true)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user          User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account?                 @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  categoryRel   Category?                @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  executions    RecurringBillExecution[]
+
+  @@index([userId, isActive])
+  @@map("recurring_bills")
+}
+
+// Registro histórico de pagos ejecutados por ciclo mensual (v2)
+model RecurringBillExecution {
+  id              String          @id @default(uuid())
+  recurringBillId String
+  transactionId   String?         // Transacción contable generada en la BD
+  period          String          // Ciclo en formato "YYYY-MM" (ej. "2026-10")
+  amountPaid      Decimal         @db.Decimal(14, 2)
+  paidAt          DateTime        @default(now())
+  status          ExecutionStatus @default(PAID)
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  recurringBill   RecurringBill   @relation(fields: [recurringBillId], references: [id], onDelete: Cascade)
+  transaction     Transaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringBillId, period]) // Solo una ejecución por servicio en el mismo mes
+  @@index([period])
+  @@map("recurring_bill_executions")
+}
+
 

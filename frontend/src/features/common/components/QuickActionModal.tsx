@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   Target,
   HandCoins,
+  CalendarClock,
 } from 'lucide-react';
 
 interface QuickActionModalProps {
@@ -72,6 +73,17 @@ export const QuickActionModal = ({ isOpen, onClose }: QuickActionModalProps) => 
       onClick: () => {
         onClose();
         navigate('/debts');
+      },
+    },
+    {
+      title: 'Pagar Gasto Fijo / Servicio',
+      description: 'Cuentas de luz, agua, arriendo o PAT',
+      icon: CalendarClock,
+      color: 'from-blue-500 to-indigo-600',
+      bgColor: 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400',
+      onClick: () => {
+        onClose();
+        navigate('/recurring');
       },
     },
   ];

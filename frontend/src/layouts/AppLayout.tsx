@@ -10,6 +10,7 @@ import {
   ArrowLeftRight,
   Target,
   HandCoins,
+  CalendarClock,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { label: 'Cuentas', path: '/accounts', icon: Landmark },
   { label: 'Transacciones', path: '/transactions', icon: ArrowLeftRight },
+  { label: 'Gastos Fijos', path: '/recurring', icon: CalendarClock },
   { label: 'Metas Ahorro', path: '/savings', icon: Target },
   { label: 'Deudas P2P', path: '/debts', icon: HandCoins },
 ];

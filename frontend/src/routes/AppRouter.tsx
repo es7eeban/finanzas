@@ -11,6 +11,7 @@ import { AccountsPage } from '../features/accounts/pages/AccountsPage';
 import { TransactionsPage } from '../features/transactions/pages/TransactionsPage';
 import { SavingsPage } from '../features/savings/pages/SavingsPage';
 import { DebtsPage } from '../features/debts/pages/DebtsPage';
+import { RecurringBillsPage } from '../features/recurring/pages/RecurringBillsPage';
 import { NotFoundPage } from '../features/common/pages/NotFoundPage';
 
 export const AppRouter = () => {
@@ -34,6 +35,7 @@ export const AppRouter = () => {
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/savings" element={<SavingsPage />} />
             <Route path="/debts" element={<DebtsPage />} />
+            <Route path="/recurring" element={<RecurringBillsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
