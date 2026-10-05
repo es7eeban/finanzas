@@ -215,3 +215,18 @@ model DebtPayment {
   @@index([debtLoanId])
   @@map("debt_payments")
 }
+
+// Caché de Tipo de Cambio en Base de Datos (v2)
+model ExchangeRateCache {
+  id           String   @id @default(uuid())
+  fromCurrency String   // 'USD'
+  toCurrency   String   // 'CLP'
+  rate         Decimal  @db.Decimal(14, 4)
+  source       String   @default("mindicador.cl")
+  fetchedAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@unique([fromCurrency, toCurrency])
+  @@map("exchange_rate_cache")
+}
+

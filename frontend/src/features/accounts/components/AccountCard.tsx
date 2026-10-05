@@ -17,6 +17,7 @@ import {
 import { OTHER_INSTITUTION_CODE, resolveInstitution } from '../constants/institutions';
 import { ACCOUNT_TYPE_LABELS, getSightAccountLabel } from '../constants/accountTypes';
 import { InstitutionLogo } from './InstitutionLogo';
+import { CurrencyToggle } from '../../exchange-rate';
 
 interface AccountCardProps {
   account: AccountWithSavings;
@@ -190,18 +191,30 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, onToggleStatu
 
       {/* Balance display */}
       <div>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
+        <span className="text-xs text-slate-500 dark:text-slate-400 block mb-1">
           {isCreditCard ? 'Saldo Utilizado' : isLoan ? 'Saldo Adeudado' : 'Saldo Total en Cuenta'}
         </span>
-        <div
-          className={`text-2xl font-extrabold tabular-nums tracking-tight ${
-            (isCreditCard || isLoan) && account.balance < 0
-              ? 'text-rose-600 dark:text-rose-400'
-              : 'text-slate-900 dark:text-white'
-          }`}
-        >
-          {formatCurrency(account.balance, account.currency)}
-        </div>
+        {account.currency === 'USD' ? (
+          <CurrencyToggle
+            amount={account.balance}
+            currency="USD"
+            amountClassName={
+              (isCreditCard || isLoan) && account.balance < 0
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-slate-900 dark:text-white'
+            }
+          />
+        ) : (
+          <div
+            className={`text-2xl font-extrabold tabular-nums tracking-tight ${
+              (isCreditCard || isLoan) && account.balance < 0
+                ? 'text-rose-600 dark:text-rose-400'
+                : 'text-slate-900 dark:text-white'
+            }`}
+          >
+            {formatCurrency(account.balance, account.currency)}
+          </div>
+        )}
       </div>
 
       {/* Breakdown for savings or credit cards */}

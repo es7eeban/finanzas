@@ -65,4 +65,15 @@ describe('AccountCard (v2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /editar/i }));
     expect(onEdit).toHaveBeenCalledWith(account);
   });
+
+  it('debe renderizar CurrencyToggle con opción de alternar a CLP si la cuenta es en USD', () => {
+    const usdAccount = buildAccount({
+      currency: 'USD',
+      balance: 1500,
+    });
+    render(<AccountCard account={usdAccount} />);
+
+    expect(screen.getByTestId('currency-toggle-amount')).toHaveTextContent('1,500.00');
+    expect(screen.getByRole('button', { name: /ver en clp/i })).toBeInTheDocument();
+  });
 });

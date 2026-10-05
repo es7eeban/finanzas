@@ -139,6 +139,17 @@ export interface DashboardKPIs {
   savingsRate: number;
   activeAccountsCount: number;
   activeGoalsCount: number;
+  usdToClpRate?: number;
+}
+
+export interface ExchangeRateData {
+  from: string;
+  to: string;
+  rate: number;
+  source: string;
+  fetchedAt: string;
+  expiresAt: string;
+  isFallback?: boolean;
 }
 
 export interface CategoryExpense {

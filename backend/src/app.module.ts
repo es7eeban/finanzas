@@ -8,6 +8,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
 import { SavingsModule } from './modules/savings/savings.module.js';
 import { DebtsModule } from './modules/debts/debts.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { ExchangeRateModule } from './modules/exchange-rate/exchange-rate.module.js';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 
@@ -24,6 +25,7 @@ import { AppService } from './app.service.js';
     SavingsModule,
     DebtsModule,
     DashboardModule,
+    ExchangeRateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

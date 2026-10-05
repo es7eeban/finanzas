@@ -70,6 +70,22 @@ export const DashboardPage = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {kpis?.usdToClpRate && (
+            <div
+              title="Tipo de cambio oficial en vivo (mindicador.cl)"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-xs font-semibold"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>
+                USD: $
+                {new Intl.NumberFormat('es-CL', {
+                  minimumFractionDigits: 1,
+                  maximumFractionDigits: 2,
+                }).format(kpis.usdToClpRate)}
+              </span>
+            </div>
+          )}
+
           <button
             onClick={() => {
               fetchDashboard(true);

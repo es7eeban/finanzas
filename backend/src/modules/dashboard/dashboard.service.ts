@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { TransactionType, GoalStatus, DebtStatus, DebtType, AccountType } from '@prisma/client';
+import { TransactionType, GoalStatus, DebtStatus, DebtType, AccountType, Currency } from '@prisma/client';
+import { ExchangeRateService } from '../exchange-rate/exchange-rate.service.js';
 
 export interface CategoryExpense {
   categoryId: string | null;
@@ -33,7 +34,10 @@ export interface UpcomingDueItem {
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly exchangeRateService?: ExchangeRateService,
+  ) {}
 
   /**
    * Resumen de KPIs financieros principales
@@ -45,6 +49,27 @@ export class DashboardService {
     });
 
     const currency = user?.baseCurrency || 'CLP';
+
+    let usdRate = 1;
+    if (this.exchangeRateService) {
+      try {
+        const rateData = await this.exchangeRateService.getCurrentRate('USD', 'CLP');
+        usdRate = rateData.rate;
+      } catch {
+        usdRate = 950;
+      }
+    }
+
+    const toBaseCurrency = (amount: number, accountCurrency: Currency) => {
+      if (accountCurrency === currency) return amount;
+      if (currency === Currency.CLP && accountCurrency === Currency.USD) {
+        return Math.round(amount * usdRate);
+      }
+      if (currency === Currency.USD && accountCurrency === Currency.CLP) {
+        return Number((amount / usdRate).toFixed(2));
+      }
+      return amount;
+    };
 
     // 1. Cuentas activas
     const accounts = await this.prisma.account.findMany({
@@ -67,7 +92,10 @@ export class DashboardService {
 
     // Activos no de crédito (cuentas corrientes, vista, ahorros, efectivo)
     const assetAccounts = accounts.filter((a) => !isLiabilityAccount(a.type));
-    const totalAssets = assetAccounts.reduce((sum, a) => sum + Number(a.balance), 0);
+    const totalAssets = assetAccounts.reduce(
+      (sum, a) => sum + toBaseCurrency(Number(a.balance), a.currency),
+      0,
+    );
     const liquidAvailable = Math.max(0, totalAssets - reservedInSavings);
 
     // Deudas por pagar (Pasivos)
@@ -90,7 +118,8 @@ export class DashboardService {
     const creditCards = accounts.filter((a) => isLiabilityAccount(a.type));
     const creditDebt = creditCards.reduce((sum, a) => {
       const bal = Number(a.balance);
-      return sum + (bal < 0 ? Math.abs(bal) : 0);
+      const positiveDebt = bal < 0 ? Math.abs(bal) : 0;
+      return sum + toBaseCurrency(positiveDebt, a.currency);
     }, 0);
 
     const totalLiabilities = totalBorrowedPending + creditDebt;
@@ -147,6 +176,7 @@ export class DashboardService {
       savingsRate,
       activeAccountsCount: accounts.length,
       activeGoalsCount: activeGoals.length,
+      usdToClpRate: usdRate,
     };
   }
 
